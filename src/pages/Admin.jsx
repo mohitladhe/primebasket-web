@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Alert from "../components/Alert";
+import imageCompression from "browser-image-compression";
 
 const API = import.meta.env.VITE_API_URL;
 
@@ -54,8 +55,42 @@ function Admin() {
     });
   };
 
-  const handleImageChange = (e) => {
-    setImageFile(e.target.files[0]);
+  const handleImageChange = async (e) => {
+    try {
+      const file = e.target.files[0];
+
+      if (!file) return;
+
+      setLoading(true);
+
+      // Compress image before upload
+
+      const compressedFile = await imageCompression(file, {
+        maxSizeMB: 0.4,
+        maxWidthOrHeight: 1400,
+        useWebWorker: true,
+        initialQuality: 0.8,
+      });
+
+      console.log("Original Size:", (file.size / 1024 / 1024).toFixed(2), "MB");
+
+      console.log(
+        "Compressed Size:",
+        (compressedFile.size / 1024 / 1024).toFixed(2),
+        "MB",
+      );
+
+      setImageFile(compressedFile);
+    } catch (err) {
+      console.error("Image compression error:", err);
+
+      setAlert({
+        message: "Failed to process image",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const uploadImage = async (userId) => {
@@ -71,7 +106,7 @@ function Admin() {
         fileSize: imageFile.size,
         fileType: imageFile.type,
         userId: userId,
-        apiUrl: API
+        apiUrl: API,
       });
 
       const res = await fetch(`${API}/api/admin/upload`, {
@@ -83,22 +118,27 @@ function Admin() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        console.error("Upload failed with status:", res.status, "Error data:", errorData);
-        
+        console.error(
+          "Upload failed with status:",
+          res.status,
+          "Error data:",
+          errorData,
+        );
+
         throw new Error(
-          errorData?.error || 
-          errorData?.details ||
-          `Upload failed with status ${res.status}`
+          errorData?.error ||
+            errorData?.details ||
+            `Upload failed with status ${res.status}`,
         );
       }
 
       const data = await res.json();
       console.log("Upload successful. Public URL:", data.publicUrl);
-      
+
       if (!data.publicUrl) {
         throw new Error("No public URL returned from upload");
       }
-      
+
       return data.publicUrl;
     } catch (err) {
       console.error("Image upload error:", err);
@@ -108,13 +148,18 @@ function Admin() {
 
   const saveProduct = async () => {
     if (!form.title || !form.category || !form.price) {
-      setAlert({ message: "Please fill in all required fields", type: "error" });
+      setAlert({
+        message: "Please fill in all required fields",
+        type: "error",
+      });
       return;
     }
 
     setLoading(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     try {
       if (!user) {
@@ -157,7 +202,9 @@ function Admin() {
       }
 
       setAlert({
-        message: editing ? "Product updated successfully" : "Product added successfully",
+        message: editing
+          ? "Product updated successfully"
+          : "Product added successfully",
         type: "success",
       });
 
@@ -167,16 +214,22 @@ function Admin() {
       await fetchProducts();
     } catch (err) {
       console.error("Save product error:", err);
-      setAlert({ message: err.message || "Failed to save product", type: "error" });
+      setAlert({
+        message: err.message || "Failed to save product",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const deleteProduct = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this product?")) return;
+    if (!window.confirm("Are you sure you want to delete this product?"))
+      return;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     try {
       const res = await fetch(`${API}/api/admin/products/${id}`, {
@@ -208,9 +261,10 @@ function Admin() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const filteredProducts = products.filter((p) =>
-    p.title.toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase())
+  const filteredProducts = products.filter(
+    (p) =>
+      p.title.toLowerCase().includes(search.toLowerCase()) ||
+      p.category.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -230,8 +284,12 @@ function Admin() {
       <main className="grow p-6 md:p-10">
         <div className="max-w-7xl mx-auto space-y-10">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-500 mt-1">Manage your store products and inventory.</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Admin Dashboard
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Manage your store products and inventory.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -243,7 +301,11 @@ function Admin() {
                   </h2>
                   {editing && (
                     <button
-                      onClick={() => { setEditing(null); setForm({}); setImageFile(null); }}
+                      onClick={() => {
+                        setEditing(null);
+                        setForm({});
+                        setImageFile(null);
+                      }}
                       className="text-sm text-gray-500 hover:text-red-500 transition"
                     >
                       Cancel
@@ -269,9 +331,13 @@ function Admin() {
                       onChange={handleChange}
                       className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all bg-white"
                     >
-                      <option value="" disabled>Select Category</option>
+                      <option value="" disabled>
+                        Select Category
+                      </option>
                       {categories.map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -303,7 +369,13 @@ function Admin() {
                       className="w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 transition-all border border-gray-300 rounded-lg bg-white"
                     />
                     {imageFile && (
-                      <p className="text-xs text-gray-500 mt-2">Selected: {imageFile.name}</p>
+                      <div className="text-xs text-gray-500 mt-2 space-y-1">
+                        <p>
+                          Selected: {imageFile.name || "compressed-image.jpg"}
+                        </p>
+
+                        <p>Size: {(imageFile.size / 1024).toFixed(0)} KB</p>
+                      </div>
                     )}
                   </div>
 
@@ -313,7 +385,12 @@ function Admin() {
                         <button
                           key={tag}
                           type="button"
-                          onClick={() => setForm({ ...form, badge: tag === form.badge ? "" : tag })}
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              badge: tag === form.badge ? "" : tag,
+                            })
+                          }
                           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
                             form.badge === tag
                               ? "bg-green-500 text-white shadow-md shadow-green-500/40"
@@ -338,15 +415,35 @@ function Admin() {
                       </>
                     ) : editing ? (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          />
                         </svg>
                         Update
                       </>
                     ) : (
                       <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          />
                         </svg>
                         Add
                       </>
@@ -359,8 +456,18 @@ function Admin() {
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center focus-within:ring-2 focus-within:ring-green-500 focus-within:border-green-500 transition-all">
                 <div className="pl-4 pr-2 text-gray-400">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
                   </svg>
                 </div>
                 <input
@@ -408,7 +515,10 @@ function Admin() {
                       </div>
 
                       <div className="p-5 flex flex-col grow">
-                        <h3 className="font-semibold text-lg text-gray-900 truncate" title={p.title}>
+                        <h3
+                          className="font-semibold text-lg text-gray-900 truncate"
+                          title={p.title}
+                        >
                           {p.title}
                         </h3>
 
