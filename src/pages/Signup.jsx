@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { FaUser, FaEnvelope, FaLock } from "react-icons/fa";
 import OTPInput from "../components/OTPInput";
-import { supabase } from "../lib/supabaseClient";
+
+const API = import.meta.env.VITE_API_URL;
 
 function Signup() {
   const [name, setName] = useState("");
@@ -11,22 +12,32 @@ function Signup() {
   const [step, setStep] = useState(1);
 
   const handleSignup = async () => {
-    console.log(name, email, password);
+    try {
+      console.log(name, email, password);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
+      const res = await fetch(`${API}/api/auth/signup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      },
-    });
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
+      });
 
-    if (error) {
-      alert(error.message);
-    } else {
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Signup failed");
+      }
+
       setStep(2);
+    } catch (err) {
+      console.error("Signup error:", err);
+
+      alert(err.message || "Signup failed");
     }
   };
 
@@ -69,8 +80,10 @@ function Signup() {
               >
                 <div>
                   <label className="text-sm text-gray-600">Full Name</label>
+
                   <div className="flex items-center border rounded-lg px-3 mt-1">
                     <FaUser className="text-gray-400" />
+
                     <input
                       type="text"
                       value={name}
@@ -83,8 +96,10 @@ function Signup() {
 
                 <div>
                   <label className="text-sm text-gray-600">Email</label>
+
                   <div className="flex items-center border rounded-lg px-3 mt-1">
                     <FaEnvelope className="text-gray-400" />
+
                     <input
                       type="email"
                       value={email}
@@ -97,6 +112,7 @@ function Signup() {
 
                 <div>
                   <label className="text-sm text-gray-600">Password</label>
+
                   <div className="flex items-center border rounded-lg px-3 mt-1">
                     <FaLock className="text-gray-400" />
 
@@ -131,7 +147,7 @@ function Signup() {
 
               <p className="text-gray-500 mt-2">
                 Please check your inbox and click the
-                <span className="font-semibold"> "Confirm your email"</span>
+                <span className="font-semibold"> \"Confirm your email\"</span>
                 link to activate your account.
               </p>
 

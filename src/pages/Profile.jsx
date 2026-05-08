@@ -16,6 +16,8 @@ import {
   FiUpload,
 } from "react-icons/fi";
 
+const API = import.meta.env.VITE_API_URL;
+
 function Profile() {
   const { user } = useAuth();
 
@@ -33,34 +35,26 @@ function Profile() {
   // ---------------- FETCH PROFILE ----------------
 
   const fetchProfile = async () => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (userError || !user) {
-      console.log("User not found", userError);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (error) {
-      console.log("Profile fetch error:", error);
-      return;
-    }
-
-    if (data) {
-      setProfile({
-        full_name: data.full_name || "",
-        email: data.email || user.email,
-        phone: data.phone || "",
-        avatar_url: data.avatar_url || "",
+      const res = await fetch(`${API}/api/profile`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error);
+      }
+
+      setProfile(data.profile);
+    } catch (err) {
+      console.log("Profile fetch error:", err);
     }
   };
 
@@ -71,50 +65,80 @@ function Profile() {
   // ---------------- UPDATE PROFILE ----------------
 
   const updateProfile = async () => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: profile.full_name,
-        phone: profile.phone,
-        avatar_url: profile.avatar_url,
-      })
-      .eq("id", user.id);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (!error) {
+      const res = await fetch(`${API}/api/profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          full_name: profile.full_name,
+          phone: profile.phone,
+          avatar_url: profile.avatar_url,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error);
+      }
+
       setEditing(false);
+
       alert("Profile updated");
+    } catch (err) {
+      console.log("Profile update error:", err);
+
+      alert("Failed to update profile");
     }
   };
 
   // ---------------- IMAGE UPLOAD ----------------
 
   const uploadAvatar = async (e) => {
-  const file = e.target.files[0];
-  if (!file || !user) return;
+    const file = e.target.files[0];
 
-  const fileExt = file.name.split(".").pop();
-  const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+    if (!file || !user) return;
 
-  const { error } = await supabase.storage
-    .from("avatars")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: true,
-    });
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  if (error) {
-    console.log("Upload error:", error);
-    alert("Upload failed");
-    return;
-  }
+      const formData = new FormData();
 
-  const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      formData.append("avatar", file);
 
-  setProfile((prev) => ({
-    ...prev,
-    avatar_url: data.publicUrl,
-  }));
-};
+      const res = await fetch(`${API}/api/profile/upload-avatar`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error);
+      }
+
+      setProfile((prev) => ({
+        ...prev,
+        avatar_url: data.avatar_url,
+      }));
+    } catch (err) {
+      console.log("Upload error:", err);
+
+      alert("Upload failed");
+    }
+  };
 
   const handleChange = (e) => {
     setProfile({

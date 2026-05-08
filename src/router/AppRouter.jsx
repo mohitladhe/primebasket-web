@@ -8,6 +8,10 @@ import Shop from "../pages/Shop";
 import Categories from "../pages/Categories";
 import Deals from "../pages/Deals";
 import Cart from "../pages/Cart";
+import Checkout from "../pages/Checkout";
+import OrderSuccess from "../pages/OrderSuccess";
+import Admin from "../pages/Admin";
+import Dashboard from "../pages/Dashboard";
 
 function AppRouter() {
   return (
@@ -26,7 +30,11 @@ function AppRouter() {
       <Route path="/shop" element={<Shop />} />
       <Route path="/shop" element={<Shop />} />
       <Route path="/shop" element={<Shop />} />
-      <Route path="/cart" element={<Cart/>}/>
+      <Route path="/cart" element={<Cart />} />
+      <Route path="/checkout" element={<Checkout />} />
+      <Route path="/order-success" element={<OrderSuccess />} />
+      <Route path="/admin" element={<Admin />} />
+      <Route path="/dashboard" element={<Dashboard />} />
     </Routes>
   );
 }

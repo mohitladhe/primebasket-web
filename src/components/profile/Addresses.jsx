@@ -11,6 +11,8 @@ import {
   FiCheck
 } from "react-icons/fi";
 
+const API = import.meta.env.VITE_API_URL;
+
 function Addresses() {
 
   const { user } = useAuth();
@@ -34,13 +36,29 @@ function Addresses() {
 
   const fetchAddresses = async () => {
 
-    const {data} = await supabase
-      .from("addresses")
-      .select("*")
-      .eq("user_id",user.id)
-      .order("created_at",{ascending:false});
+    try {
 
-    if(data) setAddresses(data);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch(`${API}/api/addresses`, {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error);
+      }
+
+      setAddresses(data.addresses || []);
+
+    } catch (err) {
+      console.error("Fetch addresses error:", err);
+    }
   };
 
   useEffect(()=>{
@@ -62,59 +80,116 @@ function Addresses() {
 
   const addAddress = async ()=>{
 
-    await supabase
-      .from("addresses")
-      .insert({
-        ...form,
-        user_id:user.id
+    try {
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      await fetch(`${API}/api/addresses`, {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${session.access_token}`,
+        },
+        body:JSON.stringify(form)
       });
 
-    setShowModal(false);
-    setForm({});
-    fetchAddresses();
+      setShowModal(false);
+
+      setForm({
+        label:"",
+        full_name:"",
+        phone:"",
+        street:"",
+        city:"",
+        state:"",
+        zipcode:"",
+        country:""
+      });
+
+      fetchAddresses();
+
+    } catch(err){
+      console.error("Add address error:",err);
+    }
   };
 
   // ---------------- UPDATE ADDRESS ----------------
 
   const updateAddress = async ()=>{
 
-    await supabase
-      .from("addresses")
-      .update(form)
-      .eq("id",editing.id);
+    try {
 
-    setEditing(null);
-    setShowModal(false);
-    fetchAddresses();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      await fetch(`${API}/api/addresses/${editing.id}`,{
+        method:"PUT",
+        headers:{
+          "Content-Type":"application/json",
+          Authorization:`Bearer ${session.access_token}`,
+        },
+        body:JSON.stringify(form)
+      });
+
+      setEditing(null);
+      setShowModal(false);
+
+      fetchAddresses();
+
+    } catch(err){
+      console.error("Update address error:",err);
+    }
   };
 
   // ---------------- DELETE ----------------
 
   const deleteAddress = async(id)=>{
 
-    await supabase
-      .from("addresses")
-      .delete()
-      .eq("id",id);
+    try {
 
-    fetchAddresses();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      await fetch(`${API}/api/addresses/${id}`,{
+        method:"DELETE",
+        headers:{
+          Authorization:`Bearer ${session.access_token}`,
+        }
+      });
+
+      fetchAddresses();
+
+    } catch(err){
+      console.error("Delete address error:",err);
+    }
   };
 
   // ---------------- SET DEFAULT ----------------
 
   const setDefault = async(id)=>{
 
-    await supabase
-      .from("addresses")
-      .update({is_default:false})
-      .eq("user_id",user.id);
+    try {
 
-    await supabase
-      .from("addresses")
-      .update({is_default:true})
-      .eq("id",id);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    fetchAddresses();
+      await fetch(`${API}/api/addresses/default/${id}`,{
+        method:"PUT",
+        headers:{
+          Authorization:`Bearer ${session.access_token}`,
+        }
+      });
+
+      fetchAddresses();
+
+    } catch(err){
+      console.error("Set default error:",err);
+    }
   };
 
   // ---------------- OPEN EDIT ----------------
@@ -214,7 +289,18 @@ function Addresses() {
       <div
         onClick={()=>{
           setEditing(null);
-          setForm({});
+
+          setForm({
+            label:"",
+            full_name:"",
+            phone:"",
+            street:"",
+            city:"",
+            state:"",
+            zipcode:"",
+            country:""
+          });
+
           setShowModal(true);
         }}
         className="border-dashed border-2 rounded-xl p-6 text-center text-gray-500 cursor-pointer hover:bg-gray-50 flex justify-center items-center gap-2"
